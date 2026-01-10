@@ -57,7 +57,7 @@ async def handle_report_selection(update: Update, context: ContextTypes.DEFAULT_
         current_report_type = reports[user_choice]
         
         instructions = {
-            #Сделано 2, 3, 4
+            #Сделано 1(10.01), 2, 3, 4, 5(10.01), ?6(10.1)
             "schedule": "📤 Пожалуйста, загрузите Excel-файл с расписанием группы на неделю.",
             "topics": "📤 Пожалуйста, загрузите Excel-файл с темами занятий.\n\nТемы должны быть в формате: 'Урок № _. Тема: _'",
             "students": "📤 Пожалуйста, загрузите Excel-файл с информацией по студентам.",
@@ -200,9 +200,57 @@ def process_excel_file(file_path, report_type):
 
 # 1. Отчет по расписанию
 def process_schedule(df):
-    """Считает количество пар по каждой дисциплине"""
-    result = "📅 ОТЧЕТ ПО РАСПИСАНИЮ\n"
+    """Считает количество пар по каждой дисциплине для каждой группы"""
+    result = "📅 ОТЧЕТ ПО ВЫСТАВЛЕННОМУ РАСПИСАНИЮ\n"
     result += "=" * 40 + "\n\n"
+    
+    if 'Группа' in df.columns:
+        df['Группа'] = df['Группа'].ffill()
+    
+    groups = df['Группа'].dropna().unique()
+    
+    result += f"Всего групп в расписании: {len(groups)}\n\n"
+    
+    for group in groups:
+        result += f"{'═' * 40}\n"
+        result += f"ГРУППА: {group}\n"
+        result += f"{'═' * 40}\n"
+        
+        group_data = df[df['Группа'] == group]
+        discipline_counts = {}
+        for col in df.columns:
+            if any(day in col for day in ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье']):
+                for cell in group_data[col]:
+                    if pd.isna(cell) or cell == '' or str(cell).strip() == '':
+                        continue
+                    
+                    cell_str = str(cell)
+                    if 'Предмет:' in cell_str:
+                        lines = cell_str.split('\n')
+                        for line in lines:
+                            if line.startswith('Предмет:'):
+                                discipline = line.replace('Предмет:', '').strip()
+                                if '<br>' in discipline:
+                                    discipline = discipline.split('<br>')[0]
+                                discipline_counts[discipline] = discipline_counts.get(discipline, 0) + 1
+                                break
+        
+        if discipline_counts:
+            total_pairs = sum(discipline_counts.values())
+            
+            result += f"Всего пар в неделю: {total_pairs}\n\n"
+            
+            result += "Количество пар по дисциплинам:\n"
+            sorted_disciplines = sorted(discipline_counts.items(), key=lambda x: x[1], reverse=True)
+            
+            for discipline, count in sorted_disciplines:
+                result += f"  • {discipline}: {count} пар\n"
+        else:
+            result += "Нет запланированных пар на эту неделю.\n"
+        
+        result += "\n"
+    
+    return result
 
 # 2. Отчет по темам занятия
 def process_topics(df):
@@ -247,11 +295,9 @@ def process_students(df):
         result += f"Доступные колонки: {', '.join(df.columns)}"
         return result
     
-    # Конвертируем в числовые типы
     df['Homework'] = pd.to_numeric(df['Homework'], errors='coerce')
     df['Classroom'] = pd.to_numeric(df['Classroom'], errors='coerce')
     
-    # Фильтруем студентов
     filtered_students = df[
         (df['Homework'] <= 1) & 
         (df['Classroom'] <= 3)
@@ -278,34 +324,26 @@ def process_attendance(df):
     result += "=" * 40 + "\n\n"
     
     if 'ФИО преподавателя' in df.columns and 'Средняя посещаемость' in df.columns:
-        # Функция для преобразования строки с % в число
         def parse_percentage(value):
             if pd.isna(value):
                 return None
-            # Если это строка
             if isinstance(value, str):
-                # Убираем пробелы и символ %
                 cleaned = value.strip().replace('%', '').replace(',', '.')
                 try:
-                    # Пытаемся преобразовать в число
                     return float(cleaned)
                 except ValueError:
                     return None
-            # Если уже число
             elif isinstance(value, (int, float)):
                 return float(value)
             return None
         
-        # Применяем функцию ко всей колонке
         df['Посещаемость_число'] = df['Средняя посещаемость'].apply(parse_percentage)
         
-        # Фильтруем по значениям меньше 40
         low_attendance = df[df['Посещаемость_число'] < 40]
         
         result += f"Всего преподавателей: {len(df)}\n"
         result += f"С посещаемостью ниже 40%: {len(low_attendance)}\n\n"
         
-        # Статистика по пропущенным значениям
         missing_values = df['Посещаемость_число'].isna().sum()
         if missing_values > 0:
             result += f"⚠️ Некорректных значений: {missing_values}\n\n"
@@ -314,7 +352,6 @@ def process_attendance(df):
             result += "📋 Преподаватели с низкой посещаемостью:\n"
             for _, row in low_attendance.iterrows():
                 result += f"\n👨‍🏫 {row['ФИО преподавателя']}\n"
-                # Показываем оригинальное значение из колонки
                 orig_value = row['Средняя посещаемость']
                 if isinstance(orig_value, str):
                     result += f"   • Посещаемость: {orig_value.strip()}"
@@ -330,9 +367,96 @@ def process_attendance(df):
 
 # 5. Отчет по проверенным ДЗ
 def process_checked_hw(df):
-    """Находит преподавателей с низким процентом проверки ДЗ"""
+    """Находит преподавателей с низким процентом проверки ДЗ за месяц и неделю"""
     result = "📝 ОТЧЕТ ПО ПРОВЕРЕННЫМ ДЗ\n"
-    result += "=" * 40 + "\n\n"
+    result += "=" * 50 + "\n\n"
+    
+    if 'ФИО преподавателя' not in df.columns:
+        result += "❌ Не найдена колонка 'ФИО преподавателя'.\n"
+        result += f"Доступные колонки: {', '.join(df.columns)}"
+        return result
+    
+    month_start_idx = None
+    week_start_idx = None
+    
+    for i, col in enumerate(df.columns):
+        if str(col).strip() == 'Месяц':
+            month_start_idx = i
+        elif str(col).strip() == 'Неделя':
+            week_start_idx = i
+    
+    if month_start_idx is None:
+        result += "❌ Не найдена секция 'Месяц' в таблице.\n"
+        return result
+    
+    if week_start_idx is None:
+        result += "❌ Не найдена секция 'Неделя' в таблице.\n"
+        return result
+    
+    # Считаем колонки вручную
+    month_received_idx = month_start_idx + 2  
+    month_checked_idx = month_start_idx + 3   
+    
+    week_received_idx = week_start_idx + 2    
+    week_checked_idx = week_start_idx + 3    
+    
+    if month_checked_idx >= len(df.columns) or week_checked_idx >= len(df.columns):
+        result += "❌ Неправильная структура таблицы.\n"
+        result += f"Всего колонок: {len(df.columns)}, нужны индексы {month_checked_idx} и {week_checked_idx}"
+        return result
+    
+    month_received_col = df.columns[month_received_idx]
+    month_checked_col = df.columns[month_checked_idx]
+    week_received_col = df.columns[week_received_idx]
+    week_checked_col = df.columns[week_checked_idx]
+    
+    # Переименовываем колонки чтобы было легче прописывать код
+    df = df.rename(columns={
+        month_received_col: 'Получено_месяц',
+        month_checked_col: 'Проверено_месяц',
+        week_received_col: 'Получено_неделя',
+        week_checked_col: 'Проверено_неделя'
+    })
+    
+    for col in ['Получено_месяц', 'Проверено_месяц', 'Получено_неделя', 'Проверено_неделя']:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+    
+    df['Процент_месяц'] = 0.0
+    mask_month = df['Получено_месяц'] > 0
+    df.loc[mask_month, 'Процент_месяц'] = (df['Проверено_месяц'] / df['Получено_месяц']) * 100
+    
+    df['Процент_неделя'] = 0.0
+    mask_week = df['Получено_неделя'] > 0
+    df.loc[mask_week, 'Процент_неделя'] = (df['Проверено_неделя'] / df['Получено_неделя']) * 100
+    
+    mask_low = (df['Процент_месяц'] < 70) | (df['Процент_неделя'] < 70)
+    low_checking = df[mask_low].copy()
+    
+    low_checking = low_checking[low_checking['ФИО'].notna() & (low_checking['ФИО'] != '')]
+    
+    result += f"Всего преподавателей: {len(df[df['ФИО'].notna() & (df['ФИО'] != '')])}\n"
+    result += f"С процентом проверки ниже 70% (месяц или неделя): {len(low_checking)}\n\n"
+    
+    if len(low_checking) > 0:
+        result += "📋 Преподаватели с низким процентом проверки:\n"
+        result += "-" * 50 + "\n"
+        
+        for _, row in low_checking.iterrows():
+            result += f"\n👨‍🏫 {row['ФИО преподавателя']}\n"
+            
+            if pd.isna(row['Получено_месяц']) or row['Получено_месяц'] == 0:
+                result += f"   📅 Месяц: нет данных\n"
+            else:
+                result += f"   📅 Месяц: {row['Процент_месяц']:.1f}% (проверено {row['Проверено_месяц']:.0f} из {row['Получено_месяц']:.0f})\n"
+            
+            if pd.isna(row['Получено_неделя']) or row['Получено_неделя'] == 0:
+                result += f"   📆 Неделя: нет данных\n"
+            else:
+                result += f"   📆 Неделя: {row['Процент_неделя']:.1f}% (проверено {row['Проверено_неделя']:.0f} из {row['Получено_неделя']:.0f})\n"
+    else:
+        result += "✅ Все преподаватели проверяют более 70% ДЗ за оба периода.\n"
+    
+    return result
 
 # 6. Отчет по сданным ДЗ
 def process_submitted_hw(df):
@@ -340,8 +464,32 @@ def process_submitted_hw(df):
     result = "📊 ОТЧЕТ ПО СДАННЫМ ДЗ\n"
     result += "=" * 40 + "\n\n"
     
+    required_cols = ['FIO', 'Percentage Homework']
+    missing_cols = [col for col in required_cols if col not in df.columns]
+    
+    if missing_cols:
+        result += f"Не хватает колонок: {', '.join(missing_cols)}\n"
+        result += f"Доступные колонки: {', '.join(df.columns)}"
+        return result
+    
+    df['Percentage Homework'] = pd.to_numeric(df['Percentage Homework'], errors='coerce')
+    
+    low_submission = df[df['Percentage Homework'] < 70]
+    
+    result += f"Всего студентов: {len(df)}\n"
+    result += f"С процентом сдачи ниже 70%: {len(low_submission)}\n\n"
+    
+    if len(low_submission) > 0:
+        result += "📋 Студенты:\n"
+        for _, row in low_submission.iterrows():
+            result += f"\n👤 {row['FIO']}\n"
+            result += f"   • Процент сдачи: {row['Percentage Homework']:.1f}%"
+    else:
+        result += "✅ Все студенты сдают более 70% ДЗ."
+    
+    return result
 
-# /help
+# help
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Отправляет справку по использованию бота"""
     help_text = """
@@ -392,9 +540,7 @@ def main():
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
-
     os.makedirs("downloads", exist_ok=True)
     os.makedirs("reports", exist_ok=True)
-    
     
     main()
