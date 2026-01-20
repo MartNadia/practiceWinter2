@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>3ab5571b-b864-40fc-bc50-c0f27314861c</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>telegram_bot.py</StartupFile>
+    <StartupFile>main.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -21,7 +21,12 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="telegram_bot.py" />
+    <Compile Include="auth.py" />
+    <Compile Include="bot_config.py" />
+    <Compile Include="data_manager.py" />
+    <Compile Include="handlers.py" />
+    <Compile Include="main.py" />
+    <Compile Include="report_processor.py" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="requirements.txt" />
