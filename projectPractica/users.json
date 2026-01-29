@@ -1,10 +1,46 @@
 {
-  "dikuweidc": {
-    "full_name": "Мартынова Надежда Дмитриевна",
+  "admin1": {
+    "telegram_username": "@KaterinaRyabkova",
+    "full_name": "Рябкова Екатерина",
+    "role": "admin",
+    "is_predefined": true
+  },
+  "admin2": {
+    "telegram_username": "@balakhnina",
+    "full_name": "Балахина Ксения Олеговна",
+    "role": "admin",
+    "is_predefined": true
+  },
+  "admin3": {
+    "telegram_username": "@JuliaaChernova",
+    "full_name": "Чернова Юлия",
     "subjects": [
-      "Основы алгоритмизации и программирования РПО"
+      "ОГСЭ.05 Физическая культура"
+    ],
+    "role": "admin",
+    "is_predefined": true
+  },
+  "teacher1": {
+    "telegram_username": "@Mazero_T",
+    "full_name": "Мазеро Тинаше",
+    "subjects": [
+      "Иностранный язык в профессиональной деятельности РПО",
+      "Иностранный язык в профессиональной деятельности ГД"
     ],
     "role": "teacher",
-    "registered_at": "2026-01-13T20:52:56.984005"
+    "is_predefined": false
+  },
+  "teacher2": {
+    "telegram_username": "@lekalukyanova",
+    "full_name": "Лукьянова Елена Сергеевна",
+    "subjects": [
+      "Менеджмент и экономические основы рекламной деятельности ИМ",
+      "Правовое обеспечение рекламной деятельности ИМ",
+      "Маркетинг в рекламе ИМ",
+      "Рекламная деятельность ИМ",
+      "Правовое обеспечение профессиональной деятельности ИМ"
+    ],
+    "role": "teacher",
+    "is_predefined": false
   }
 }

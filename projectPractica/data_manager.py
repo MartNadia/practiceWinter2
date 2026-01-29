@@ -1,34 +1,63 @@
 ﻿import json
 import os
-from bot_config import PREDEFINED_USERS, USERS_FILE, logger
+from bot_config import USERS_FILE, logger
 
 def load_users():
-    """Загружает пользователей из файла и добавляет предустановленных"""
-    users = PREDEFINED_USERS.copy()
+    """Загружает пользователей из файла"""
+    users = {}
     
     if os.path.exists(USERS_FILE):
         try:
             with open(USERS_FILE, 'r', encoding='utf-8') as f:
-                saved_users = json.load(f)
-                for username, data in saved_users.items():
-                    if username not in users:
-                        users[username] = data
-                        users[username]['is_predefined'] = False
+                users = json.load(f)
+            for username, data in users.items():
+                if 'is_predefined' not in data:
+                    data['is_predefined'] = True
+                    
         except Exception as e:
             logger.error(f"Ошибка загрузки пользователей: {e}")
+            return {}
+    else:
+        logger.warning(f"Файл пользователей {USERS_FILE} не найден. Создайте файл users.json с пользователями.")
     
     return users
 
 def save_users(users):
-    """Сохраняет пользователей в файл (только не предустановленных)"""
-    users_to_save = {username: data for username, data in users.items() 
-                    if not data.get('is_predefined', False)}
-    
+    """Сохраняет всех пользователей в файл"""
     try:
         with open(USERS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(users_to_save, f, ensure_ascii=False, indent=2)
+            json.dump(users, f, ensure_ascii=False, indent=2)
+        logger.info(f"Пользователи успешно сохранены в {USERS_FILE}")
     except Exception as e:
         logger.error(f"Ошибка сохранения пользователей: {e}")
+
+def add_user(username, user_data):
+    """Добавляет нового пользователя"""
+    users = load_users()
+    
+    if username in users:
+        return False, "Пользователь с таким username уже существует"
+    
+    user_data['is_predefined'] = False
+    users[username] = user_data
+    save_users(users)
+    
+    return True, "Пользователь успешно добавлен"
+
+def remove_user(username):
+    """Удаляет пользователя (только не предустановленного)"""
+    users = load_users()
+    
+    if username not in users:
+        return False, "Пользователь не найден"
+    
+    if users[username].get('is_predefined', True):
+        return False, "Нельзя удалить предустановленного пользователя"
+    
+    del users[username]
+    save_users(users)
+    
+    return True, "Пользователь успешно удален"
 
 def check_access(username, user_role, report_type):
     """Проверяет доступ пользователя к отчету"""

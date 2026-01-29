@@ -1,6 +1,6 @@
 ﻿from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
-from data_manager import load_users, PREDEFINED_USERS
+from data_manager import load_users, add_user, remove_user
 from bot_config import reply_markup, logger
 
 current_user = None
@@ -8,13 +8,23 @@ current_user = None
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Начинает процесс авторизации"""
     user = update.effective_user
+ 
     users = load_users()
+    
+    if not users:
+        await update.message.reply_text(
+            "❌ Ошибка: база пользователей пуста.\n"
+            "Обратитесь к администратору для настройки системы.",
+            reply_markup=reply_markup
+        )
+        from bot_config import AUTH_CHOICE
+        return AUTH_CHOICE
+    
     found_user = None
     found_username = None
     
     for username_key, user_data in users.items():
         telegram_username = user_data.get('telegram_username', '').lstrip('@')
-        
         if telegram_username and telegram_username.lower() == user.username.lower():
             found_user = user_data
             found_username = username_key
@@ -79,26 +89,38 @@ async def handle_auth_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
             from bot_config import AUTH_CHOICE
             return AUTH_CHOICE
         
+        users = load_users()
         users_list = "\n".join([f"• {user_data.get('telegram_username', '@' + username)} - {user_data['full_name']}" 
-                              for username, user_data in PREDEFINED_USERS.items()])
+                              for username, user_data in users.items()])
         
         await update.message.reply_text(
             f"❌ Доступ запрещен!\n\n"
             f"Пользователь @{user.username} не найден в системе.\n"
             f"Если вы должны иметь доступ к боту, обратитесь к администратору.\n\n"
-            f"Разрешенные пользователи:\n{users_list}\n\n"
+            f"Зарегистрированные пользователи:\n{users_list}\n\n"
             f"Для тестирования выберите 'Ручная авторизация'."
         )
         from bot_config import AUTH_CHOICE
         return AUTH_CHOICE
         
     elif user_choice == "🛠 Ручная авторизация (тестирование)":
+        users = load_users()
+        
+        if not users:
+            await update.message.reply_text(
+                "❌ Ошибка: база пользователей пуста.\n"
+                "Нет доступных пользователей для тестирования.",
+                reply_markup=reply_markup
+            )
+            from bot_config import AUTH_CHOICE
+            return AUTH_CHOICE
+        
         await update.message.reply_text(
             "🛠 РУЧНАЯ АВТОРИЗАЦИЯ ДЛЯ ТЕСТИРОВАНИЯ\n\n"
             "Введите username для тестирования (например: admin1, teacher_1):\n\n"
             "Доступные тестовые пользователи:\n" +
             "\n".join([f"• {username} - {data['full_name']} ({'Управляющий' if data['role'] == 'admin' else 'Преподаватель'})" 
-                      for username, data in PREDEFINED_USERS.items()])
+                      for username, data in users.items()])
         )
         from bot_config import MANUAL_AUTH_USERNAME
         return MANUAL_AUTH_USERNAME
@@ -124,6 +146,7 @@ async def handle_manual_auth_username(update: Update, context: ContextTypes.DEFA
         
         user_data['username_key'] = username_input
         user_data['is_test_mode'] = True
+        
         context.user_data['current_user'] = user_data
         
         welcome_text = f"🛠 ТЕСТОВЫЙ РЕЖИМ АКТИВИРОВАН\n\n"
@@ -147,10 +170,11 @@ async def handle_manual_auth_username(update: Update, context: ContextTypes.DEFA
         from bot_config import MENU
         return MENU
     else:
+        users = load_users()
         await update.message.reply_text(
             f"❌ Пользователь '{username_input}' не найден.\n\n"
             f"Доступные пользователи:\n" +
-            "\n".join([f"• {username} - {data['full_name']}" for username, data in PREDEFINED_USERS.items()]) +
+            "\n".join([f"• {username} - {data['full_name']}" for username, data in users.items()]) +
             f"\n\nВведите username из списка выше:"
         )
         from bot_config import MANUAL_AUTH_USERNAME

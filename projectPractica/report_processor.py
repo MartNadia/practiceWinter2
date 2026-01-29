@@ -59,15 +59,14 @@ def process_schedule(df):
     result = "📅 ОТЧЕТ ПО ВЫСТАВЛЕННОМУ РАСПИСАНИЮ\n"
     if 'Группа' in df.columns:
         df['Группа'] = df['Группа'].ffill()
-    
     groups = df['Группа'].dropna().unique()
     
     result += f"Всего групп в расписании: {len(groups)}\n\n"
-    
     for group in groups:
         result += f"{'═' * 40}\n"
         result += f"ГРУППА: {group}\n"
         result += f"{'═' * 40}\n"
+        
         group_data = df[df['Группа'] == group]
         discipline_counts = {}
         
@@ -87,7 +86,7 @@ def process_schedule(df):
                                     discipline = discipline.split('<br>')[0]
                                 discipline_counts[discipline] = discipline_counts.get(discipline, 0) + 1
                                 break
-        
+
         if discipline_counts:
             total_pairs = sum(discipline_counts.values())
             
@@ -106,7 +105,6 @@ def process_schedule(df):
     if len(groups) == 0:
         result += "Группы не найдены в файле.\n"
         result += "Попытка найти пары по всей таблице:\n"
-        
         for col in df.columns:
             if any(day in col for day in ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье']):
                 for cell in df[col]:
@@ -151,10 +149,12 @@ def process_topics(df, user=None):
             result += f"Администратор: {user['full_name']}\n"
         else:
             result += f"Преподаватель: {user['full_name']}\n"
+        
         if not is_admin and 'subjects' in user and user['subjects']:
             result += f"Дисциплины: {', '.join(user['subjects'])}\n\n"
         else:
             result += "\n"
+    
     required_columns = ['Тема урока', 'ФИО преподавателя']
     missing_columns = [col for col in required_columns if col not in df.columns]
     
@@ -166,35 +166,31 @@ def process_topics(df, user=None):
     correct_format = []
     incorrect_format = []
     
+    # РЕЖИМ АДМИНИСТРАТОРА
     if user and user.get('role') == 'admin':
         for idx, (_, row) in enumerate(df.iterrows(), 1):
             topic = row['Тема урока']
+            teacher_name = row['ФИО преподавателя']
             
             if pd.isna(topic):
                 continue
                 
             if isinstance(topic, str) and topic.startswith("Урок №") and (". Тема:" in topic or ".Тема:" in topic):
-                correct_format.append(f"  {idx}. {topic}")
+                correct_format.append(f"  {idx}. [{teacher_name}] {topic}")
             else:
-                incorrect_format.append(f"  {idx}. {topic}")
+                incorrect_format.append(f"  {idx}. [{teacher_name}] {topic}")
         
         total_topics = len(df['Тема урока'].dropna())
         result += "📊 СТАТИСТИКА ПО ВСЕМУ ФАЙЛУ:\n"
         result += f"Всего тем в файле: {total_topics}\n"
         result += f"Корректных тем: {len(correct_format)}\n"
         result += f"Некорректных тем: {len(incorrect_format)}\n\n"
-        
         if incorrect_format:
             result += "❌ Некорректные темы всех преподавателей:\n"
             result += "\n".join(incorrect_format[:len(incorrect_format)]) + "\n\n"
-        
-        if correct_format:
-            result += "✅ Примеры корректных тем:\n"
-            for i in range(min(3, len(correct_format))):
-                result += correct_format[i] + "\n"
-        
         return result
     
+    # РЕЖИМ ПРЕПОДАВАТЕЛЯ
     if user:
         teacher_topics = df[df['ФИО преподавателя'] == user['full_name']]
     else:
@@ -246,7 +242,6 @@ def process_students(df):
     
     df['Homework'] = pd.to_numeric(df['Homework'], errors='coerce')
     df['Classroom'] = pd.to_numeric(df['Classroom'], errors='coerce')
-    
     filtered_students = df[
         (df['Homework'] <= 1) & 
         (df['Classroom'] <= 3)
@@ -292,12 +287,10 @@ def process_attendance(df, user=None):
             return None
         
         df['Посещаемость_число'] = df['Средняя посещаемость'].apply(parse_percentage)
-        
         low_attendance = df[df['Посещаемость_число'] < 40]
         
         result += f"Всего преподавателей в отчете: {len(df)}\n"
         result += f"С посещаемостью ниже 40%: {len(low_attendance)}\n\n"
-        
         missing_values = df['Посещаемость_число'].isna().sum()
         if missing_values > 0:
             result += f"⚠️ Некорректных значений: {missing_values}\n\n"
@@ -311,8 +304,6 @@ def process_attendance(df, user=None):
                     result += f"   • Посещаемость: {orig_value.strip()}"
                 else:
                     result += f"   • Посещаемость: {orig_value}%"
-        else:
-            result += "✅ Все преподаватели имеют посещаемость выше 40%."
     else:
         result += "Необходимы колонки: 'ФИО преподавателя', 'Средняя посещаемость'\n"
         result += f"Доступные колонки: {', '.join(df.columns)}"
@@ -355,9 +346,9 @@ def process_checked_hw(df, period='month', user=None):
         result += f"❌ Не найдена секция '{target_section}' в таблице.\n"
         result += f"Доступные колонки: {', '.join(df.columns[:10])}..."
         return result
-    
-    received_idx = section_start_idx + 2
-    checked_idx = section_start_idx + 3
+
+    received_idx = section_start_idx + 2  
+    checked_idx = section_start_idx + 3  
     
     if checked_idx >= len(df.columns):
         result += f"❌ Неправильная структура таблицы для секции '{target_section}'.\n"
@@ -374,7 +365,6 @@ def process_checked_hw(df, period='month', user=None):
         received_col: new_received_col,
         checked_col: new_checked_col
     })
-
     for col in [new_received_col, new_checked_col]:
         df[col] = pd.to_numeric(df[col], errors='coerce')
     
@@ -403,16 +393,12 @@ def process_checked_hw(df, period='month', user=None):
                 result += f"   • Нет данных\n"
             else:
                 result += f"   • Проверено: {row['Процент']:.1f}% ({row[new_checked_col]:.0f} из {row[new_received_col]:.0f})\n"
-    else:
-        result += "✅ Все преподаватели проверяют более 70% ДЗ.\n"
-    
     return result
 
 # 6. Отчет по сданным ДЗ
 def process_submitted_hw(df, period='all_time'):
     """Находит студентов с низким процентом сданных ДЗ"""
     result = "📊 ОТЧЕТ ПО СДАННЫМ ДЗ\n"
-    
     all_columns = df.columns.tolist()
     
     if period == 'all_time':
@@ -420,15 +406,15 @@ def process_submitted_hw(df, period='all_time'):
         percentage_columns = [col for col in all_columns if 'Percentage' in str(col) and 'Homework' in str(col)]
         
         if len(percentage_columns) >= 1:
-            hw_column = percentage_columns[0] 
+            hw_column = percentage_columns[0]  
         else:
-            hw_column = 'Percentage Homework'
+            hw_column = 'Percentage Homework'  
     else:  
         result += "Период: за последние 30 дней\n"
         percentage_columns = [col for col in all_columns if 'Percentage' in str(col) and 'Homework' in str(col)]
         
         if len(percentage_columns) >= 2:
-            hw_column = percentage_columns[1] 
+            hw_column = percentage_columns[1]
         elif len(percentage_columns) == 1:
             hw_column = percentage_columns[0]
             result += "⚠️ Внимание: найдена только одна колонка с процентами ДЗ\n"
@@ -496,6 +482,7 @@ def process_submitted_hw(df, period='all_time'):
             result += "❌ Нет данных для анализа (все значения - прочерки или отсутствуют).\n"
         else:
             result += "✅ Все студенты сдают более 70% ДЗ.\n"
+            
             if students_with_dash > 0:
                 students_with_dash_list = df[df[hw_column].isna()]
                 result += f"\n⚠️ Студенты с прочерком (-) в данных ({students_with_dash} чел.):\n"

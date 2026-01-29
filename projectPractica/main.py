@@ -1,14 +1,15 @@
 ﻿import os
 from telegram import Update
 from telegram.ext import Application, ConversationHandler, CommandHandler, MessageHandler, filters, CallbackQueryHandler
-from bot_config import TOKEN, AUTH_CHOICE, MANUAL_AUTH_USERNAME, MENU, CHOOSE_HW_TYPE, CHOOSE_HW_CHECK_TYPE, WAITING_FILE, CHOOSE_OUTPUT, logger
+from bot_config import TOKEN, AUTH_CHOICE, MANUAL_AUTH_USERNAME, MENU, CHOOSE_HW_TYPE, CHOOSE_HW_CHECK_TYPE, WAITING_FILE, CHOOSE_OUTPUT, ADMIN_MENU, ADD_USER, REMOVE_USER, logger
 from auth import start, handle_auth_choice, handle_manual_auth_username
-from handlers import handle_report_selection, handle_hw_type_selection, handle_hw_check_type_selection, handle_document, handle_output_choice, help_command
+from handlers import handle_report_selection, handle_hw_type_selection, handle_hw_check_type_selection, handle_document, handle_output_choice, help_command, handle_admin_menu, handle_add_user, handle_remove_user
 
 def main():
     """Запуск бота"""
     os.makedirs("downloads", exist_ok=True)
     os.makedirs("reports", exist_ok=True)
+    
     application = Application.builder().token(TOKEN).build()
     
     conv_handler = ConversationHandler(
@@ -21,6 +22,9 @@ def main():
             CHOOSE_HW_CHECK_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_hw_check_type_selection)],
             WAITING_FILE: [MessageHandler(filters.Document.ALL, handle_document)],
             CHOOSE_OUTPUT: [CallbackQueryHandler(handle_output_choice)],
+            ADMIN_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_admin_menu)],
+            ADD_USER: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_add_user)],
+            REMOVE_USER: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_remove_user)],
         },
         fallbacks=[CommandHandler('start', start)],
         name="main_conversation",

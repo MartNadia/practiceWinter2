@@ -1,4 +1,5 @@
 ﻿import logging
+import os
 from telegram import ReplyKeyboardMarkup
 
 logging.basicConfig(
@@ -9,45 +10,18 @@ logger = logging.getLogger(__name__)
 
 TOKEN = "8211522202:AAH8XRQVCsQBcwk7R23t9RCzTs5_e_ukNsw"
 
+AUTH_CHOICE, MANUAL_AUTH_USERNAME, MANUAL_AUTH_ROLE, TEST_MODE, MENU, WAITING_FILE, CHOOSE_HW_TYPE, CHOOSE_HW_CHECK_TYPE, CHOOSE_OUTPUT, ADMIN_MENU, ADD_USER, REMOVE_USER = range(12)
+
 USERS_FILE = "users.json"
 
-AUTH_CHOICE, MANUAL_AUTH_USERNAME, MANUAL_AUTH_ROLE, TEST_MODE, MENU, WAITING_FILE, CHOOSE_HW_TYPE, CHOOSE_HW_CHECK_TYPE, CHOOSE_OUTPUT = range(9)
-
-PREDEFINED_USERS = {
-    "admin1": {
-        "telegram_username": "@KaterinaRyabkova",
-        "full_name": "Рябкова Екатерина -",
-        "role": "admin",
-        "is_predefined": True
-    },
-    "admin2": {
-        "telegram_username": "@balakhnina",
-        "full_name": "Балахина Ксения -",
-        "role": "admin",
-        "is_predefined": True
-    },
-    "admin3": {
-        "telegram_username": "@JuliaaChernova",
-        "full_name": "Чернова Юлия Андреевна",
-        "role": "admin",
-        "is_predefined": True
-    },
-    
-    "teacher_1": {
-        "telegram_username": "@Mazero_T",
-        "full_name": "Мазеро Тинаше",
-        "subjects": ["Иностранный язык в профессиональной деятельности РПО", "Иностранный язык в профессиональной деятельности ГД"],
-        "role": "teacher",
-        "is_predefined": True
-    },
-    "teacher_2": {
-        "telegram_username": "@lekalukyanova",
-        "full_name": "Лукьянова Елена Сергеевна",
-        "subjects": ["Менеджмент и экономические основы рекламной деятельности ИМ","Правовое обеспечение рекламной деятельности ИМ","Маркетинг в рекламе ИМ","Рекламная деятельность ИМ","Правовое обеспечение профессиональной деятельности ИМ"],
-        "role": "teacher",
-        "is_predefined": True
-    }
-}
+if not os.path.exists(USERS_FILE):
+    try:
+        import json
+        with open(USERS_FILE, 'w', encoding='utf-8') as f:
+            json.dump({}, f, ensure_ascii=False, indent=2)
+        logger.info(f"Создан пустой файл пользователей: {USERS_FILE}")
+    except Exception as e:
+        logger.error(f"Ошибка создания файла пользователей: {e}")
 
 menu_keyboard = [
     ["📅 Отчет по выставленному расписанию"],
@@ -56,6 +30,7 @@ menu_keyboard = [
     ["✅ Отчет по посещаемости студентов"],
     ["📝 Отчет по проверенным дз"],
     ["📊 Отчет по сданным дз"],
+    ["👥 Управление пользователями"],
     ["ℹ️ Помощь"]
 ]
 
